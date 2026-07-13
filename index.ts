@@ -46,6 +46,21 @@ async function run() {
     res.send(result);
   });
 
+  app.get("/api/products/mine", async (req: Request, res: Response) => {
+    const { email } = req.query;
+
+    if (!email) {
+      return res.status(400).send({ message: "email is required" });
+    }
+
+    const result = await productsCollection
+      .find({ createdBy: email as string })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(result);
+  });
+
   app.get("/api/products/:id", async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const query = { _id: new ObjectId(id) };
@@ -97,12 +112,65 @@ async function run() {
       price: product.price,
       buyerEmail,
       buyerName: buyerName || "",
+      sellerEmail: product.createdBy || product.ownerEmail || "",
+      status: "pending",
       createdAt: new Date(),
     };
 
     const result = await ordersCollection.insertOne(order);
 
     res.status(201).send({ ...order, _id: result.insertedId });
+  });
+
+  app.patch("/api/orders/:id", async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const { status } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: "Invalid order id" });
+    }
+
+    if (!status) {
+      return res.status(400).send({ message: "Status is required" });
+    }
+
+    const result = await ordersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { status } },
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ message: "Order not found" });
+    }
+
+    res.send({ message: "Order status updated" });
+  });
+
+  app.get("/api/orders", async (req: Request, res: Response) => {
+    const { buyerEmail } = req.query;
+
+    const query = buyerEmail ? { buyerEmail: buyerEmail as string } : {};
+    const result = await ordersCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(result);
+  });
+
+  app.get("/api/orders/received", async (req: Request, res: Response) => {
+    const { sellerEmail } = req.query;
+
+    if (!sellerEmail) {
+      return res.status(400).send({ message: "sellerEmail is required" });
+    }
+
+    const result = await ordersCollection
+      .find({ sellerEmail: sellerEmail as string })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(result);
   });
 }
 
