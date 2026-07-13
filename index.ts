@@ -40,7 +40,9 @@ async function run() {
 
   app.get("/api/products", async (req: Request, res: Response) => {
     const cursor = productsCollection.find();
+
     const result = await cursor.toArray();
+
     res.send(result);
   });
 
