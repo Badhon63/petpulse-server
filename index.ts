@@ -62,7 +62,7 @@ async function requireAuth(
 }
 
 async function run() {
-  await client.connect();
+  // await client.connect();
   const database = client.db("petpulse");
   const productsCollection = database.collection("products");
   const ordersCollection = database.collection("orders");
