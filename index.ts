@@ -28,6 +28,7 @@ async function run() {
   const database = client.db("petpulse");
   const productsCollection = database.collection("products");
   const ordersCollection = database.collection("orders");
+  const usersCollection = database.collection("user");
 
   app.post("/api/products", async (req: Request, res: Response) => {
     const newItem = req.body;
@@ -86,7 +87,7 @@ async function run() {
   });
 
   app.post("/api/orders", async (req: Request, res: Response) => {
-    const { productId, buyerEmail, buyerName } = req.body;
+    const { productId, buyerEmail, buyerName, paid = false } = req.body;
 
     if (!productId || !buyerEmail) {
       return res
@@ -114,6 +115,7 @@ async function run() {
       buyerName: buyerName || "",
       sellerEmail: product.createdBy || product.ownerEmail || "",
       status: "pending",
+      paid,
       createdAt: new Date(),
     };
 
@@ -147,9 +149,12 @@ async function run() {
   });
 
   app.get("/api/orders", async (req: Request, res: Response) => {
-    const { buyerEmail } = req.query;
+    const { buyerEmail, sellerEmail } = req.query;
 
-    const query = buyerEmail ? { buyerEmail: buyerEmail as string } : {};
+    let query = {};
+    if (buyerEmail) query = { buyerEmail: buyerEmail as string };
+    else if (sellerEmail) query = { sellerEmail: sellerEmail as string };
+
     const result = await ordersCollection
       .find(query)
       .sort({ createdAt: -1 })
@@ -171,6 +176,51 @@ async function run() {
       .toArray();
 
     res.send(result);
+  });
+
+  app.get("/api/users", async (req: Request, res: Response) => {
+    const result = await usersCollection
+      .find({ role: { $ne: "admin" } })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(result);
+  });
+
+  app.patch("/api/users/:id/ban", async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const { banned } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: "Invalid user id" });
+    }
+
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { banned: !!banned } },
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    res.send({ message: banned ? "User banned" : "User unbanned" });
+  });
+
+  app.delete("/api/users/:id", async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: "Invalid user id" });
+    }
+
+    const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    res.send({ message: "User deleted" });
   });
 }
 
