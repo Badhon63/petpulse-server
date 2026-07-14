@@ -2,6 +2,7 @@ import "dotenv/config";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { MongoClient, ServerApiVersion, ObjectId } from "mongodb";
+import { createRemoteJWKSet, jwtVerify } from "jose-cjs";
 
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -22,8 +23,6 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
-
-import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const JWKS = createRemoteJWKSet(
   new URL(`${process.env.FRONTEND_URL}/api/auth/jwks`),
