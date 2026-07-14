@@ -222,6 +222,28 @@ async function run() {
 
     res.send({ message: "User deleted" });
   });
+
+  app.patch("/api/products/:id", async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: "Invalid product id" });
+    }
+
+    const updates = { ...req.body };
+    delete updates._id;
+
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updates },
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ message: "Product not found" });
+    }
+
+    res.send({ message: "Product updated" });
+  });
 }
 
 run().catch(console.dir);
